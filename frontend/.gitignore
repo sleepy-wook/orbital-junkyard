@@ -33,8 +33,7 @@ yarn-error.log*
 # env files
 .env*
 
-# cesium static assets (generated)
-/public/cesium/
+# cesium static assets are committed for Vercel deployment
 
 # vercel
 .vercel
