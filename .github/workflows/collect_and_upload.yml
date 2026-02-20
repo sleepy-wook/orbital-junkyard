@@ -1,0 +1,44 @@
+name: Orbital Junkyard Data Pipeline
+
+on:
+  schedule:
+    # 8시간마다 실행 (UTC 00:00, 08:00, 16:00)
+    - cron: '0 0,8,16 * * *'
+  workflow_dispatch: # 수동 실행 버튼
+
+jobs:
+  collect-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests boto3 python-dotenv
+
+      - name: Collect CelesTrak GP
+        run: python databricks/collection/collect_celestrak.py
+
+      - name: Collect Space-Track SATCAT + GP
+        env:
+          SPACETRACK_USERNAME: ${{ secrets.SPACETRACK_USERNAME }}
+          SPACETRACK_PASSWORD: ${{ secrets.SPACETRACK_PASSWORD }}
+        run: python databricks/collection/collect_spacetrack.py
+
+      - name: Collect NOAA Solar Weather
+        run: python databricks/collection/collect_noaa.py
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_REGION: us-east-1
+        run: python scripts/upload_to_s3.py
