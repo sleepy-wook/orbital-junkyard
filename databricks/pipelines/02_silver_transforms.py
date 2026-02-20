@@ -34,8 +34,8 @@ from pyspark.sql import functions as F
 @dlt.expect("valid_norad_id", "norad_cat_id IS NOT NULL")
 @dlt.expect("valid_object_name", "object_name IS NOT NULL")
 def space_objects():
-    # SATCAT: 카탈로그 메타데이터
-    satcat = dlt.read("spacetrack_satcat_raw").select(
+    # SATCAT: 카탈로그 메타데이터 (최신 수집분만 유지)
+    satcat_all = dlt.read("spacetrack_satcat_raw").select(
         F.col("NORAD_CAT_ID").cast("int").alias("norad_cat_id"),
         F.col("SATNAME").alias("object_name"),
         F.col("OBJECT_ID").alias("intl_designator"),
@@ -48,10 +48,15 @@ def space_objects():
         F.col("PERIGEE").cast("int").alias("perigee_km"),
         F.col("RCS_SIZE").alias("rcs_size"),
         F.col("CURRENT").alias("is_current"),
+        F.col("_ingestion_ts"),
     )
+    # dedup: NORAD_CAT_ID 기준 최신 레코드만 유지
+    from pyspark.sql.window import Window
+    w_satcat = Window.partitionBy("norad_cat_id").orderBy(F.desc("_ingestion_ts"))
+    satcat = satcat_all.withColumn("_rn", F.row_number().over(w_satcat)).filter("_rn = 1").drop("_rn", "_ingestion_ts")
 
-    # CelesTrak GP: 최신 궤도 요소
-    gp = dlt.read("celestrak_gp_raw").select(
+    # CelesTrak GP: 최신 궤도 요소 (최신 수집분만 유지)
+    gp_all = dlt.read("celestrak_gp_raw").select(
         F.col("NORAD_CAT_ID").cast("int").alias("norad_cat_id"),
         F.col("EPOCH").cast("timestamp").alias("epoch"),
         F.col("MEAN_MOTION").cast("double").alias("mean_motion"),
@@ -62,7 +67,11 @@ def space_objects():
         F.col("MEAN_ANOMALY").cast("double").alias("mean_anomaly"),
         F.col("BSTAR").cast("double").alias("bstar"),
         F.col("REV_AT_EPOCH").cast("int").alias("rev_at_epoch"),
+        F.col("_ingestion_ts"),
     )
+    # dedup: NORAD_CAT_ID 기준 최신 EPOCH 레코드만 유지
+    w_gp = Window.partitionBy("norad_cat_id").orderBy(F.desc("epoch"), F.desc("_ingestion_ts"))
+    gp = gp_all.withColumn("_rn", F.row_number().over(w_gp)).filter("_rn = 1").drop("_rn", "_ingestion_ts")
 
     # 조인: SATCAT + GP (left join — GP가 없는 SATCAT 객체도 유지)
     df = satcat.join(gp, "norad_cat_id", "left")
@@ -124,7 +133,7 @@ def space_objects():
 )
 @dlt.expect("valid_time", "time_tag IS NOT NULL")
 def solar_wind_cleaned():
-    return (
+    df = (
         dlt.read("noaa_solar_wind_raw")
         .select(
             F.to_timestamp("time_tag").alias("time_tag"),
@@ -134,6 +143,8 @@ def solar_wind_cleaned():
         )
         .filter(F.col("time_tag").isNotNull())
     )
+    # dedup: 같은 time_tag가 여러 수집에서 중복될 수 있으므로 제거
+    return df.dropDuplicates(["time_tag"])
 
 
 @dlt.table(
@@ -143,7 +154,7 @@ def solar_wind_cleaned():
 )
 @dlt.expect("valid_time", "time_tag IS NOT NULL")
 def kp_index_cleaned():
-    return (
+    df = (
         dlt.read("noaa_kp_index_raw")
         .select(
             F.to_timestamp(F.col("time_tag")).alias("time_tag"),
@@ -153,6 +164,7 @@ def kp_index_cleaned():
         )
         .filter(F.col("time_tag").isNotNull())
     )
+    return df.dropDuplicates(["time_tag"])
 
 
 @dlt.table(
@@ -162,7 +174,7 @@ def kp_index_cleaned():
 )
 @dlt.expect("valid_time", "time_tag IS NOT NULL")
 def xray_flux_cleaned():
-    return (
+    df = (
         dlt.read("noaa_xray_flux_raw")
         .select(
             F.to_timestamp("time_tag").alias("time_tag"),
@@ -172,6 +184,7 @@ def xray_flux_cleaned():
         )
         .filter(F.col("time_tag").isNotNull())
     )
+    return df.dropDuplicates(["time_tag", "energy", "satellite"])
 
 
 @dlt.table(
@@ -236,7 +249,11 @@ def solar_weather():
     table_properties={"quality": "silver"},
 )
 def fragmentation_events():
-    satcat = dlt.read("spacetrack_satcat_raw")
+    satcat_raw = dlt.read("spacetrack_satcat_raw")
+    # dedup: NORAD_CAT_ID 기준 최신 레코드만 유지
+    from pyspark.sql.window import Window
+    w = Window.partitionBy(F.col("NORAD_CAT_ID")).orderBy(F.desc("_ingestion_ts"))
+    satcat = satcat_raw.withColumn("_rn", F.row_number().over(w)).filter("_rn = 1").drop("_rn")
 
     # INTLDES 접두사 추출 (예: "1999-025" → "1999-025")
     # OBJECT_ID 형식: "1999-025ABC" → 앞 8자리가 발사 식별자
