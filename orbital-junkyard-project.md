@@ -713,7 +713,7 @@ orbital-junkyard/
 │   │   └── 03_gold_aggregations.py    # Silver → Gold Materialized Views
 │   │
 │   └── export/                    # Gold → JSON (프론트엔드용)
-│       └── export_to_json.py
+│       └── export_gold_to_json.py
 │
 ├── frontend/                      # Next.js 웹 애플리케이션
 │   ├── package.json
@@ -767,76 +767,50 @@ orbital-junkyard/
 - [x] Databricks에서 S3 읽기 확인 (External Location)
 - [x] Unity Catalog: `orbital_junkyard` 카탈로그 + bronze/silver/gold 스키마 생성
 
-### Phase 2: DLT 파이프라인 구축 (현재)
+### Phase 2: DLT 파이프라인 구축 (완료)
 
 **목표:** DLT로 Bronze → Silver → Gold 전체 파이프라인 구현
 
-- [ ] DLT 파이프라인 노트북 작성
-  - `01_bronze_ingestion.py` — Auto Loader로 S3 JSON → Bronze Streaming Tables
-  - `02_silver_transforms.py` — Bronze → Silver Materialized Views + MERGE
-  - `03_gold_aggregations.py` — Silver → Gold 집계 Materialized Views
-- [ ] DLT Pipeline 생성 (Databricks UI에서 3개 노트북 연결)
-- [ ] 데이터 품질 Expectations 설정
-  ```python
-  # DLT Expectations 예시
-  @dlt.expect_or_drop("valid_norad_id", "NORAD_CAT_ID IS NOT NULL")
-  @dlt.expect("valid_altitude", "PERIGEE > 0")
-  ```
-- [ ] Silver 테이블 검증
-  - `space_objects`: SATCAT 메타 + CelesTrak 궤도 요소 조인, orbital_regime 파생
-  - `solar_weather`: NOAA 3종 통합 시계열
-  - `fragmentation_events`: INTLDES 접두사 기반 그룹핑
-- [ ] Gold 테이블 검증
-  - `orbital_census`: 타입/궤도/국가별 스냅샷
-  - `congestion_metrics`: 고도 밴드 밀도
-  - `country_leaderboard`: 국가별 순위 + 잔해 비율
-  - `constellation_growth`: Starlink/OneWeb/Kuiper 추적
-  - `decay_tracker`: 감쇠 중 객체 추적
-  - `storm_impact`: 태양날씨 상관관계
-- [ ] Export 노트북: Gold → JSON → S3
+- [x] DLT 파이프라인 노트북 작성
+  - `01_bronze_ingestion.py` — Auto Loader로 S3 JSON → Bronze Streaming Tables (6개 테이블)
+  - `02_silver_transforms.py` — Bronze → Silver Materialized Views (6개 테이블)
+  - `03_gold_aggregations.py` — Silver → Gold 집계 Materialized Views (6개 테이블)
+- [x] DLT Pipeline 생성 (`orbital_junkyard_pipeline`, 카탈로그: `orbital_junkyard`, 스키마: `main`)
+- [x] 데이터 품질 Expectations 설정 (`@dlt.expect`)
+- [x] Silver 테이블 검증 — space_objects, solar_weather, fragmentation_events 등 6개
+- [x] Gold 테이블 검증 — orbital_census, congestion_metrics 등 6개 (총 18개 테이블)
+- [x] Export 노트북: `export_gold_to_json.py` — Gold → JSON → S3 (`s3://orbital-junkyard-data/export/`)
 
-**검증:**
-```sql
-SELECT object_type, orbital_regime, COUNT(*)
-FROM orbital_junkyard.silver.space_objects
-GROUP BY object_type, orbital_regime
-```
-
-### Phase 3: 자동화 + Workflow (3주차)
+### Phase 3: 자동화 + Workflow (완료)
 
 **목표:** 전체 파이프라인 자동 실행
 
-- [ ] Databricks Workflow 생성: 수집 → S3 업로드 → DLT 트리거 → export
-- [ ] 8시간 스케줄 설정
-- [ ] 실패 알림 설정
-- [ ] Delta Lake Time Travel 데모 노트북
+- [x] GitHub Actions 워크플로우: 8시간마다 데이터 수집 + S3 업로드 (`.github/workflows/collect_and_upload.yml`)
+- [x] Databricks Job: DLT 파이프라인 스케줄 실행 (Quartz cron: `0 0 10,18,2 * * ?` Asia/Seoul)
+- [x] Export 자동화: Databricks Job에 JSON export 태스크 추가 (DLT 완료 후 실행)
+- [ ] Delta Lake Time Travel 데모 노트북 (선택)
 
-### Phase 4: 프론트엔드 — 3D 지구본 (4~5주차)
+### Phase 4: 프론트엔드 — 3D 지구본 + 대시보드 (현재)
 
-**목표:** 시각적 임팩트의 랜딩 페이지
+**목표:** Next.js + CesiumJS로 시각적 임팩트의 웹 애플리케이션
 
+**데이터 흐름:** Gold 테이블 → JSON export → S3 (`/export/`) → Next.js API Routes → 프론트엔드 렌더링
+
+- [ ] JSON export 자동화 설정 (Databricks Job에 export 태스크 추가)
+- [ ] S3 export/ 경로 퍼블릭 읽기 설정 (또는 Next.js API Routes에서 AWS SDK로 fetch)
 - [ ] Next.js + CesiumJS 프로젝트 셋업
 - [ ] export JSON으로 36,000+ 객체 3D 렌더링
 - [ ] 객체 타입별 색상 구분
 - [ ] 클릭 → 상세 팝업
 - [ ] 필터 (타입, 국가, 고도)
-- [ ] i18n (영어/한국어 토글)
-- [ ] 반응형 (데스크톱 + 모바일)
-
-### Phase 5: 프론트엔드 — 대시보드 (5~6주차)
-
-**목표:** 분석적 깊이
-
 - [ ] 궤도 센서스 대시보드
 - [ ] 국가별 리더보드
-- [ ] 파편화 사건 타임라인
-- [ ] 고도 밀도 히트맵
 - [ ] 별자리 성장 트래커
-- [ ] 감쇠 트래커
-- [ ] 태양 폭풍 영향 분석
+- [ ] i18n (영어/한국어 토글)
+- [ ] 반응형 (데스크톱 + 모바일)
 - [ ] Vercel 배포
 
-### Phase 6: 마무리 & 문서화 (6~7주차)
+### Phase 5: 마무리 & 문서화
 
 **목표:** 포트폴리오 완성
 
