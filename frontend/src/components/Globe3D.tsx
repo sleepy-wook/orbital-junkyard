@@ -56,6 +56,7 @@ export default function Globe3D({ objects }: Globe3DProps) {
   const [selectedObject, setSelectedObject] = useState<SpaceObjectPoint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
+  const [legendOpen, setLegendOpen] = useState(false);
   const { t } = useTranslation();
 
   const handleSelect = useCallback((obj: SpaceObjectPoint | null) => {
@@ -365,62 +366,75 @@ export default function Globe3D({ objects }: Globe3DProps) {
       )}
 
       {/* Legend with filter toggles */}
-      <div className="absolute bottom-8 left-8 bg-card/90 backdrop-blur-md border border-card-border rounded-xl p-4">
-        <p className="text-xs text-foreground/50 mb-2 font-medium uppercase tracking-wider">
+      <div className="absolute bottom-4 left-3 md:bottom-8 md:left-8 bg-card/90 backdrop-blur-md border border-card-border rounded-xl p-3 md:p-4">
+        <button
+          className="md:hidden flex items-center gap-2 w-full text-left"
+          onClick={() => setLegendOpen((v) => !v)}
+        >
+          <p className="text-xs text-foreground/50 font-medium uppercase tracking-wider">
+            {t("globe.object_types")}
+          </p>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className={`text-foreground/40 transition-transform ${legendOpen ? "rotate-180" : ""}`}>
+            <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+        <p className="hidden md:block text-xs text-foreground/50 mb-2 font-medium uppercase tracking-wider">
           {t("globe.object_types")}
         </p>
-        <div className="flex flex-col gap-1.5">
-          {TYPE_LEGEND.map(({ type, key, colorClass }) => {
-            const hidden = hiddenTypes.has(type);
-            return (
-              <button
-                key={type}
-                onClick={() => toggleType(type)}
-                className="flex items-center gap-2 group text-left"
-              >
-                <div
-                  className={`w-3 h-3 rounded-full transition-opacity ${colorClass} ${
-                    hidden ? "opacity-20" : ""
-                  }`}
-                />
-                <span
-                  className={`text-sm transition-opacity ${
-                    hidden
-                      ? "text-foreground/30 line-through"
-                      : "text-foreground/70 group-hover:text-foreground"
-                  }`}
-                >
-                  {t(key)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="border-t border-card-border/30 mt-3 pt-3">
-          <p className="text-xs text-foreground/50 mb-2 font-medium uppercase tracking-wider">
-            {t("globe.orbital_bands")}
-          </p>
+        <div className={`${legendOpen ? "block" : "hidden"} md:block mt-2 md:mt-0`}>
           <div className="flex flex-col gap-1.5">
-            {ORBIT_BANDS.map((band) => (
-              <div key={band.label} className="flex items-center gap-2">
-                <div
-                  className="w-4 h-0.5 rounded-full"
-                  style={{ background: `rgb(${band.rgb.join(",")})` }}
-                />
-                <span className="text-xs text-foreground/60 font-medium">{band.label}</span>
-                <span className="text-xs text-foreground/30">
-                  {band.alt.toLocaleString()} km
-                </span>
-              </div>
-            ))}
+            {TYPE_LEGEND.map(({ type, key, colorClass }) => {
+              const hidden = hiddenTypes.has(type);
+              return (
+                <button
+                  key={type}
+                  onClick={() => toggleType(type)}
+                  className="flex items-center gap-2 group text-left"
+                >
+                  <div
+                    className={`w-3 h-3 rounded-full transition-opacity ${colorClass} ${
+                      hidden ? "opacity-20" : ""
+                    }`}
+                  />
+                  <span
+                    className={`text-xs md:text-sm transition-opacity ${
+                      hidden
+                        ? "text-foreground/30 line-through"
+                        : "text-foreground/70 group-hover:text-foreground"
+                    }`}
+                  >
+                    {t(key)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="border-t border-card-border/30 mt-3 pt-3">
+            <p className="text-xs text-foreground/50 mb-2 font-medium uppercase tracking-wider">
+              {t("globe.orbital_bands")}
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {ORBIT_BANDS.map((band) => (
+                <div key={band.label} className="flex items-center gap-2">
+                  <div
+                    className="w-4 h-0.5 rounded-full"
+                    style={{ background: `rgb(${band.rgb.join(",")})` }}
+                  />
+                  <span className="text-xs text-foreground/60 font-medium">{band.label}</span>
+                  <span className="text-xs text-foreground/30">
+                    {band.alt.toLocaleString()} km
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Selected object info */}
       {selectedObject && (
-        <div className="absolute top-6 right-8 bg-card/95 backdrop-blur-md border border-card-border rounded-xl p-5 min-w-64">
+        <div className="absolute top-4 right-3 md:top-6 md:right-8 bg-card/95 backdrop-blur-md border border-card-border rounded-xl p-4 md:p-5 w-56 md:w-auto md:min-w-64">
           <div className="flex justify-between items-start mb-3">
             <h3 className="font-bold text-base">{selectedObject.object_name}</h3>
             <button

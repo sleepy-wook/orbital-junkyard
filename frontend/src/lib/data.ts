@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { TableExport } from "./types";
 
 const API_BASE = "/api/data";
@@ -29,6 +30,17 @@ export function getObjectColor(objectType: string): string {
     default:
       return "#94a3b8"; // gray
   }
+}
+
+export function useIsMobile(breakpoint = 768): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [breakpoint]);
+  return isMobile;
 }
 
 export function getRegimeLabel(regime: string): string {

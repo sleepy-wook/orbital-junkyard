@@ -41,16 +41,16 @@ export default function CountriesPage() {
 
   return (
     <main className="pt-14 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-1">{t("country.title")}</h1>
-        <p className="text-foreground/50 text-sm mb-8">{t("country.desc")}</p>
+      <div className="max-w-7xl mx-auto px-3 py-6 md:px-4 md:py-8">
+        <h1 className="text-xl md:text-2xl font-bold mb-1">{t("country.title")}</h1>
+        <p className="text-foreground/50 text-sm mb-6 md:mb-8">{t("country.desc")}</p>
 
-        <div className="bg-card border border-card-border rounded-lg p-6 mb-8 min-h-[484px]">
+        <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 mb-6 md:mb-8 min-h-[340px] md:min-h-[484px]">
           <h2 className="text-sm font-semibold mb-4">{t("country.top15")}</h2>
           {loading ? <Spinner /> : <CountryBarChart data={top15} />}
         </div>
 
-        <div className="bg-card border border-card-border rounded-lg p-6 min-h-[840px]">
+        <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 min-h-[840px]">
           <h2 className="text-sm font-semibold mb-4">{t("country.detail")}</h2>
           {loading ? <Spinner /> : (
             <>

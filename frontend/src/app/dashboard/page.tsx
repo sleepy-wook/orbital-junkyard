@@ -29,9 +29,9 @@ const CongestionBarChart = dynamic(
 
 function StatCard({ label, value, color, loading }: { label: string; value: number; color: string; loading: boolean }) {
   return (
-    <div className="bg-card border border-card-border rounded-lg p-4">
+    <div className="bg-card border border-card-border rounded-lg p-3 md:p-4">
       <p className="text-xs text-foreground/50 uppercase tracking-wider">{label}</p>
-      <p className={`text-2xl font-bold mt-1 tabular-nums min-h-[36px] ${color}`}>
+      <p className={`text-xl md:text-2xl font-bold mt-1 tabular-nums min-h-[32px] md:min-h-[36px] ${color}`}>
         {loading ? <span className="inline-block w-20 h-7 bg-foreground/10 rounded animate-pulse" /> : formatNumber(value)}
       </p>
     </div>
@@ -99,29 +99,29 @@ export default function DashboardPage() {
 
   return (
     <main className="pt-14 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-1">{t("dash.title")}</h1>
-        <p className="text-foreground/50 text-sm mb-8">{t("dash.desc")}</p>
+      <div className="max-w-7xl mx-auto px-3 py-6 md:px-4 md:py-8">
+        <h1 className="text-xl md:text-2xl font-bold mb-1">{t("dash.title")}</h1>
+        <p className="text-foreground/50 text-sm mb-6 md:mb-8">{t("dash.desc")}</p>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <StatCard label={t("dash.total")} value={total} color="text-accent" loading={loadingCensus} />
           <StatCard label={t("dash.payloads")} value={byType["PAYLOAD"] || 0} color="text-green-400" loading={loadingCensus} />
           <StatCard label={t("dash.debris")} value={byType["DEBRIS"] || 0} color="text-red-400" loading={loadingCensus} />
           <StatCard label={t("dash.rocket_bodies")} value={byType["ROCKET BODY"] || 0} color="text-yellow-400" loading={loadingCensus} />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-card border border-card-border rounded-lg p-6 min-h-[364px]">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+          <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 min-h-[300px] md:min-h-[364px]">
             <h2 className="text-sm font-semibold mb-4">{t("dash.by_type")}</h2>
             {loadingCensus ? <Spinner /> : <TypePieChart data={pieData} />}
           </div>
-          <div className="bg-card border border-card-border rounded-lg p-6 min-h-[364px]">
+          <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 min-h-[300px] md:min-h-[364px]">
             <h2 className="text-sm font-semibold mb-4">{t("dash.by_regime")}</h2>
             {loadingCensus ? <Spinner /> : <RegimeBarChart data={regimeData} />}
           </div>
         </div>
 
-        <div className="bg-card border border-card-border rounded-lg p-6 mb-8 min-h-[408px]">
+        <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 mb-6 md:mb-8 min-h-[350px] md:min-h-[408px]">
           <h2 className="text-sm font-semibold mb-4">{t("dash.congestion")}</h2>
           {loadingCongestion ? <Spinner /> : (
             <>
@@ -131,7 +131,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="bg-card border border-card-border rounded-lg p-6 min-h-[228px]">
+        <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 min-h-[228px]">
           <h2 className="text-sm font-semibold mb-4">{t("dash.storm")}</h2>
           {loadingStorm ? <Spinner /> : (
             <div className="overflow-x-auto">

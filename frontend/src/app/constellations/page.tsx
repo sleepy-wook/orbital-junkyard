@@ -48,11 +48,11 @@ export default function ConstellationsPage() {
 
   return (
     <main className="pt-14 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-1">{t("const.title")}</h1>
-        <p className="text-foreground/50 text-sm mb-8">{t("const.desc")}</p>
+      <div className="max-w-7xl mx-auto px-3 py-6 md:px-4 md:py-8">
+        <h1 className="text-xl md:text-2xl font-bold mb-1">{t("const.title")}</h1>
+        <p className="text-foreground/50 text-sm mb-6 md:mb-8">{t("const.desc")}</p>
 
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
+        <div className="grid md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
           {loadingConst ? (
             [1, 2, 3].map((i) => (
               <div key={i} className="bg-card border border-card-border rounded-lg p-6 min-h-[104px]">
@@ -74,15 +74,15 @@ export default function ConstellationsPage() {
           )}
         </div>
 
-        <div className="bg-card border border-card-border rounded-lg p-6 mb-12 min-h-[284px]">
+        <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 mb-8 md:mb-12 min-h-[240px] md:min-h-[284px]">
           <h2 className="text-sm font-semibold mb-4">{t("const.comparison")}</h2>
           {loadingConst ? <Spinner /> : <ConstellationBarChart data={constellations} />}
         </div>
 
-        <h2 className="text-2xl font-bold mb-1">{t("const.decay_title")}</h2>
-        <p className="text-foreground/50 text-sm mb-8">{t("const.decay_desc")}</p>
+        <h2 className="text-xl md:text-2xl font-bold mb-1">{t("const.decay_title")}</h2>
+        <p className="text-foreground/50 text-sm mb-6 md:mb-8">{t("const.decay_desc")}</p>
 
-        <div className="bg-card border border-card-border rounded-lg p-6 min-h-[820px]">
+        <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 min-h-[820px]">
           {loadingDecay ? <Spinner /> : (
             <>
               <div className="overflow-x-auto">

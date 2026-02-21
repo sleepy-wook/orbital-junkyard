@@ -1,6 +1,6 @@
 "use client";
 
-import { formatNumber } from "@/lib/data";
+import { formatNumber, useIsMobile } from "@/lib/data";
 import { useTranslation } from "@/lib/i18n";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -13,11 +13,12 @@ interface ConstellationRow {
 
 export function ConstellationBarChart({ data }: { data: ConstellationRow[] }) {
   const { t } = useTranslation();
+  const mobile = useIsMobile();
   return (
-    <ResponsiveContainer width="100%" height={200}>
+    <ResponsiveContainer width="100%" height={mobile ? 160 : 200}>
       <BarChart data={data}>
-        <XAxis dataKey="constellation" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={{ stroke: "#374151" }} />
-        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={{ stroke: "#374151" }} />
+        <XAxis dataKey="constellation" tick={{ fill: "#9ca3af", fontSize: mobile ? 10 : 12 }} axisLine={{ stroke: "#374151" }} />
+        <YAxis tick={{ fill: "#9ca3af", fontSize: mobile ? 10 : 12 }} axisLine={{ stroke: "#374151" }} width={mobile ? 40 : 60} />
         <Tooltip
           contentStyle={{ backgroundColor: "#111827", border: "1px solid #1f2937", borderRadius: "8px", fontSize: "12px" }}
           formatter={(value) => formatNumber(value as number)}

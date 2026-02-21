@@ -1,6 +1,6 @@
 "use client";
 
-import { formatNumber } from "@/lib/data";
+import { formatNumber, useIsMobile } from "@/lib/data";
 import { useTranslation } from "@/lib/i18n";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -16,11 +16,12 @@ interface CountryRow {
 
 export function CountryBarChart({ data }: { data: CountryRow[] }) {
   const { t } = useTranslation();
+  const mobile = useIsMobile();
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ResponsiveContainer width="100%" height={mobile ? 280 : 400}>
       <BarChart data={data} layout="vertical">
-        <XAxis type="number" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={{ stroke: "#374151" }} />
-        <YAxis type="category" dataKey="country" width={50} tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={{ stroke: "#374151" }} />
+        <XAxis type="number" tick={{ fill: "#9ca3af", fontSize: mobile ? 10 : 12 }} axisLine={{ stroke: "#374151" }} />
+        <YAxis type="category" dataKey="country" width={mobile ? 40 : 50} tick={{ fill: "#9ca3af", fontSize: mobile ? 10 : 12 }} axisLine={{ stroke: "#374151" }} />
         <Tooltip
           contentStyle={{ backgroundColor: "#111827", border: "1px solid #1f2937", borderRadius: "8px", fontSize: "12px" }}
           formatter={(value) => formatNumber(value as number)}
