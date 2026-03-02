@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState, useMemo } from "react";
 import { fetchTableData, formatNumber } from "@/lib/data";
 import { useTranslation } from "@/lib/i18n";
-import type { OrbitalCensus, CongestionMetric, StormImpact, TableExport } from "@/lib/types";
+import type { OrbitalCensus, CongestionMetric, TableExport } from "@/lib/types";
 
 function Spinner() {
   return (
@@ -44,10 +44,8 @@ export default function DashboardPage() {
   const { t } = useTranslation();
   const [census, setCensus] = useState<OrbitalCensus[]>([]);
   const [congestion, setCongestion] = useState<CongestionMetric[]>([]);
-  const [storm, setStorm] = useState<StormImpact[]>([]);
   const [loadingCensus, setLoadingCensus] = useState(true);
   const [loadingCongestion, setLoadingCongestion] = useState(true);
-  const [loadingStorm, setLoadingStorm] = useState(true);
 
   useEffect(() => {
     fetchTableData<OrbitalCensus>("orbital_census")
@@ -58,10 +56,6 @@ export default function DashboardPage() {
       .then((r: TableExport<CongestionMetric>) => setCongestion(r.data))
       .catch(() => {})
       .finally(() => setLoadingCongestion(false));
-    fetchTableData<StormImpact>("storm_impact")
-      .then((r: TableExport<StormImpact>) => setStorm(r.data))
-      .catch(() => {})
-      .finally(() => setLoadingStorm(false));
   }, []);
 
   const byType = useMemo(() =>
@@ -131,33 +125,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="bg-card border border-card-border rounded-lg p-4 md:p-6 min-h-[228px]">
-          <h2 className="text-sm font-semibold mb-4">{t("dash.storm")}</h2>
-          {loadingStorm ? <Spinner /> : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-card-border">
-                    <th className="text-left py-2 px-3 text-foreground/50 font-medium">{t("dash.storm_level")}</th>
-                    <th className="text-right py-2 px-3 text-foreground/50 font-medium">{t("dash.hours")}</th>
-                    <th className="text-right py-2 px-3 text-foreground/50 font-medium">{t("dash.avg_wind")}</th>
-                    <th className="text-right py-2 px-3 text-foreground/50 font-medium">{t("dash.max_wind")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {storm.map((row) => (
-                    <tr key={row.storm_level} className="border-b border-card-border/50">
-                      <td className="py-2 px-3 font-medium">{row.storm_level}</td>
-                      <td className="py-2 px-3 text-right tabular-nums">{row.hours_count}</td>
-                      <td className="py-2 px-3 text-right tabular-nums">{row.avg_solar_wind_speed?.toFixed(0) ?? "-"} km/s</td>
-                      <td className="py-2 px-3 text-right tabular-nums">{row.max_solar_wind_speed?.toFixed(0) ?? "-"} km/s</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </div>
     </main>
   );

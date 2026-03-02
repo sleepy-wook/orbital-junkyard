@@ -10,8 +10,7 @@ const VALID_TABLES = [
   "country_leaderboard",
   "constellation_growth",
   "decay_tracker",
-  "storm_impact",
-  "space_objects",
+  "globe_data",
   "metadata",
 ];
 

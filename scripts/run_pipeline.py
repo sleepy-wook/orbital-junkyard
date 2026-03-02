@@ -4,10 +4,8 @@
 Windows Task Scheduler로 8시간마다 자동 실행되도록 설정할 수 있다.
 
 실행 순서:
-    1. CelesTrak GP 수집
-    2. Space-Track SATCAT + GP 수집
-    3. NOAA 태양날씨 3종 수집
-    4. S3 업로드
+    1. Space-Track SATCAT + GP 수집
+    2. S3 업로드
 
 사용법:
     python scripts/run_pipeline.py
@@ -76,9 +74,7 @@ def main() -> None:
 
     # 수집 스크립트 목록
     scripts = [
-        ("CelesTrak GP 수집", PROJECT_ROOT / "databricks/collection/collect_celestrak.py"),
         ("Space-Track SATCAT+GP 수집", PROJECT_ROOT / "databricks/collection/collect_spacetrack.py"),
-        ("NOAA 태양날씨 수집", PROJECT_ROOT / "databricks/collection/collect_noaa.py"),
         ("S3 업로드", PROJECT_ROOT / "scripts/upload_to_s3.py"),
     ]
 

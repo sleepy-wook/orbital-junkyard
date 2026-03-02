@@ -13,7 +13,7 @@
 # MAGIC | `country_leaderboard` | 국가별 순위 + 잔해 비율 |
 # MAGIC | `constellation_growth` | Starlink/OneWeb/Kuiper 추적 |
 # MAGIC | `decay_tracker` | 감쇠 중 객체 (재진입 후보) |
-# MAGIC | `storm_impact` | 태양 폭풍 ↔ 궤도 영향 상관분석 |
+# MAGIC | `globe_data` | 3D 글로브용 TLE 데이터 (~5,000개 샘플) |
 
 # COMMAND ----------
 
@@ -225,36 +225,36 @@ def decay_tracker():
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## storm_impact — 태양 폭풍 영향 분석
+# MAGIC ## globe_data — 3D 글로브 시각화용 데이터
+# MAGIC
+# MAGIC TLE 데이터가 있는 객체를 궤도/유형별 층화 샘플링하여
+# MAGIC 프론트엔드 3D 글로브에서 satellite.js로 실시간 위치를 계산할 수 있도록 한다.
 
 # COMMAND ----------
 
 @dlt.table(
-    name="storm_impact",
-    comment="태양 폭풍 영향 분석 — Kp 지수 급등 구간별 저궤도 객체 통계",
+    name="globe_data",
+    comment="3D 글로브 시각화용 — TLE 데이터 포함 층화 샘플 (~5,000개)",
     table_properties={"quality": "gold"},
 )
-def storm_impact():
-    weather = dlt.read("solar_weather")
+def globe_data():
+    objects = dlt.read("space_objects").filter(
+        F.col("tle_line1").isNotNull() & F.col("tle_line2").isNotNull()
+    )
 
-    # 태양 폭풍 강도 분류
-    return (
-        weather.filter(F.col("max_kp").isNotNull())
-        .withColumn(
-            "storm_level",
-            F.when(F.col("max_kp") >= 8, "G4-Severe")
-            .when(F.col("max_kp") >= 7, "G3-Strong")
-            .when(F.col("max_kp") >= 6, "G2-Moderate")
-            .when(F.col("max_kp") >= 5, "G1-Minor")
-            .otherwise("Quiet"),
-        )
-        .groupBy("storm_level")
-        .agg(
-            F.count("*").alias("hours_count"),
-            F.avg("avg_speed").alias("avg_solar_wind_speed"),
-            F.max("max_speed").alias("max_solar_wind_speed"),
-            F.avg("avg_density").alias("avg_solar_wind_density"),
-            F.avg("max_xray_flux").alias("avg_xray_flux"),
-        )
-        .orderBy(F.desc("storm_level"))
+    # 궤도별 층화 샘플링 (LEO 75%, MEO 13%, GEO 12%)
+    leo = objects.filter(F.col("orbital_regime") == "LEO").limit(3750)
+    meo = objects.filter(F.col("orbital_regime") == "MEO").limit(650)
+    geo = objects.filter(F.col("orbital_regime") == "GEO").limit(600)
+
+    sampled = leo.unionByName(meo).unionByName(geo)
+
+    return sampled.select(
+        "norad_cat_id",
+        "object_name",
+        "object_type",
+        "country",
+        "orbital_regime",
+        "tle_line1",
+        "tle_line2",
     )

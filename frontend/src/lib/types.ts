@@ -77,13 +77,14 @@ export interface DecayTracker {
   decay_risk: string;
 }
 
-export interface StormImpact {
-  storm_level: string;
-  hours_count: number;
-  avg_solar_wind_speed: number;
-  max_solar_wind_speed: number;
-  avg_solar_wind_density: number;
-  avg_xray_flux: number;
+export interface GlobeObject {
+  norad_cat_id: number;
+  object_name: string;
+  object_type: string;
+  country: string;
+  orbital_regime: string;
+  tle_line1: string;
+  tle_line2: string;
 }
 
 export interface ExportMetadata {

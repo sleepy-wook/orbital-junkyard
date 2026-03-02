@@ -23,17 +23,11 @@ jobs:
       - name: Install dependencies
         run: pip install requests boto3 python-dotenv
 
-      - name: Collect CelesTrak GP
-        run: python databricks/collection/collect_celestrak.py
-
       - name: Collect Space-Track SATCAT + GP
         env:
           SPACETRACK_USERNAME: ${{ secrets.SPACETRACK_USERNAME }}
           SPACETRACK_PASSWORD: ${{ secrets.SPACETRACK_PASSWORD }}
         run: python databricks/collection/collect_spacetrack.py
-
-      - name: Collect NOAA Solar Weather
-        run: python databricks/collection/collect_noaa.py
 
       - name: Upload to S3
         env:

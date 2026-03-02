@@ -23,7 +23,7 @@ GOLD_TABLES = [
     "country_leaderboard",
     "constellation_growth",
     "decay_tracker",
-    "storm_impact",
+    "globe_data",
 ]
 
 # COMMAND ----------

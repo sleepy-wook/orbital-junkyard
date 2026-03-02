@@ -7,8 +7,7 @@
 # MAGIC **테이블 목록:**
 # MAGIC | 테이블 | 설명 |
 # MAGIC |--------|------|
-# MAGIC | `space_objects` | 통합 객체 테이블 (SATCAT 메타 + CelesTrak 궤도 요소) |
-# MAGIC | `solar_weather` | NOAA 태양날씨 통합 시계열 |
+# MAGIC | `space_objects` | 통합 객체 테이블 (SATCAT 메타 + Space-Track GP 궤도 요소) |
 # MAGIC | `fragmentation_events` | 파편화/충돌 사건 그룹핑 |
 
 # COMMAND ----------
@@ -21,7 +20,7 @@ from pyspark.sql import functions as F
 # MAGIC %md
 # MAGIC ## space_objects — 통합 우주 객체 테이블
 # MAGIC
-# MAGIC SATCAT 메타데이터 + CelesTrak 궤도 요소를 NORAD_CAT_ID로 조인.
+# MAGIC SATCAT 메타데이터 + Space-Track GP 궤도 요소를 NORAD_CAT_ID로 조인.
 # MAGIC 궤도 분류(orbital_regime), 객체 카테고리(object_category) 파생.
 
 # COMMAND ----------
@@ -55,8 +54,8 @@ def space_objects():
     w_satcat = Window.partitionBy("norad_cat_id").orderBy(F.desc("_ingestion_ts"))
     satcat = satcat_all.withColumn("_rn", F.row_number().over(w_satcat)).filter("_rn = 1").drop("_rn", "_ingestion_ts")
 
-    # CelesTrak GP: 최신 궤도 요소 (최신 수집분만 유지)
-    gp_all = dlt.read("celestrak_gp_raw").select(
+    # Space-Track GP: 최신 궤도 요소 (최신 수집분만 유지)
+    gp_all = dlt.read("spacetrack_gp_raw").select(
         F.col("NORAD_CAT_ID").cast("int").alias("norad_cat_id"),
         F.col("EPOCH").cast("timestamp").alias("epoch"),
         F.col("MEAN_MOTION").cast("double").alias("mean_motion"),
@@ -67,6 +66,8 @@ def space_objects():
         F.col("MEAN_ANOMALY").cast("double").alias("mean_anomaly"),
         F.col("BSTAR").cast("double").alias("bstar"),
         F.col("REV_AT_EPOCH").cast("int").alias("rev_at_epoch"),
+        F.col("TLE_LINE1").alias("tle_line1"),
+        F.col("TLE_LINE2").alias("tle_line2"),
         F.col("_ingestion_ts"),
     )
     # dedup: NORAD_CAT_ID 기준 최신 EPOCH 레코드만 유지
@@ -116,122 +117,6 @@ def space_objects():
     )
 
     return df
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## solar_weather — NOAA 태양날씨 통합 시계열
-# MAGIC
-# MAGIC 태양풍(solar_wind) + Kp 지수 + X-ray 플럭스를 시간 기준으로 통합.
-
-# COMMAND ----------
-
-@dlt.table(
-    name="solar_wind_cleaned",
-    comment="태양풍 데이터 정제 — 타입 변환 + null 처리",
-    table_properties={"quality": "silver"},
-)
-@dlt.expect("valid_time", "time_tag IS NOT NULL")
-def solar_wind_cleaned():
-    df = (
-        dlt.read("noaa_solar_wind_raw")
-        .select(
-            F.to_timestamp("time_tag").alias("time_tag"),
-            F.col("density").cast("double").alias("density"),
-            F.col("speed").cast("double").alias("speed"),
-            F.col("temperature").cast("double").alias("temperature"),
-        )
-        .filter(F.col("time_tag").isNotNull())
-    )
-    # dedup: 같은 time_tag가 여러 수집에서 중복될 수 있으므로 제거
-    return df.dropDuplicates(["time_tag"])
-
-
-@dlt.table(
-    name="kp_index_cleaned",
-    comment="Kp 지수 정제 — 타입 변환",
-    table_properties={"quality": "silver"},
-)
-@dlt.expect("valid_time", "time_tag IS NOT NULL")
-def kp_index_cleaned():
-    df = (
-        dlt.read("noaa_kp_index_raw")
-        .select(
-            F.to_timestamp(F.col("time_tag")).alias("time_tag"),
-            F.col("Kp").cast("double").alias("kp_value"),
-            F.col("a_running").cast("double").alias("a_running"),
-            F.col("station_count").cast("int").alias("station_count"),
-        )
-        .filter(F.col("time_tag").isNotNull())
-    )
-    return df.dropDuplicates(["time_tag"])
-
-
-@dlt.table(
-    name="xray_flux_cleaned",
-    comment="X-ray 플럭스 정제 — 타입 변환",
-    table_properties={"quality": "silver"},
-)
-@dlt.expect("valid_time", "time_tag IS NOT NULL")
-def xray_flux_cleaned():
-    df = (
-        dlt.read("noaa_xray_flux_raw")
-        .select(
-            F.to_timestamp("time_tag").alias("time_tag"),
-            F.col("energy").alias("energy"),
-            F.col("satellite").cast("int").alias("satellite"),
-            F.col("observed_flux").cast("double").alias("xray_flux"),
-        )
-        .filter(F.col("time_tag").isNotNull())
-    )
-    return df.dropDuplicates(["time_tag", "energy", "satellite"])
-
-
-@dlt.table(
-    name="solar_weather",
-    comment="태양날씨 통합 시계열 — 태양풍 + Kp + X-ray 시간별 조인",
-    table_properties={"quality": "silver"},
-)
-def solar_weather():
-    # 각 테이블을 시간 단위로 집계한 뒤 조인
-    solar = (
-        dlt.read("solar_wind_cleaned")
-        .withColumn("hour", F.date_trunc("hour", "time_tag"))
-        .groupBy("hour")
-        .agg(
-            F.avg("density").alias("avg_density"),
-            F.avg("speed").alias("avg_speed"),
-            F.max("speed").alias("max_speed"),
-            F.avg("temperature").alias("avg_temperature"),
-        )
-    )
-
-    kp = (
-        dlt.read("kp_index_cleaned")
-        .withColumn("hour", F.date_trunc("hour", "time_tag"))
-        .groupBy("hour")
-        .agg(
-            F.max("kp_value").alias("max_kp"),
-            F.avg("kp_value").alias("avg_kp"),
-        )
-    )
-
-    xray = (
-        dlt.read("xray_flux_cleaned")
-        .withColumn("hour", F.date_trunc("hour", "time_tag"))
-        .groupBy("hour")
-        .agg(
-            F.max("xray_flux").alias("max_xray_flux"),
-            F.avg("xray_flux").alias("avg_xray_flux"),
-        )
-    )
-
-    return (
-        solar.join(kp, "hour", "full_outer")
-        .join(xray, "hour", "full_outer")
-        .withColumnRenamed("hour", "observation_hour")
-        .withColumn("date", F.to_date("observation_hour"))
-    )
 
 # COMMAND ----------
 

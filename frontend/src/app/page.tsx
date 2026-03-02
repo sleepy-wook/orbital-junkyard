@@ -1,73 +1,109 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import StatsOverlay from "@/components/StatsOverlay";
 import { fetchTableData } from "@/lib/data";
-import type { OrbitalCensus, TableExport } from "@/lib/types";
+import type { OrbitalCensus, GlobeObject, TableExport } from "@/lib/types";
+import {
+  twoline2satrec,
+  propagate,
+  gstime,
+  eciToGeodetic,
+  degreesLong,
+  degreesLat,
+} from "satellite.js";
 
 const Globe3D = dynamic(() => import("@/components/Globe3D"), { ssr: false });
 
-function generateSampleObjects(count: number) {
-  const countries = ["US", "CIS", "PRC", "JPN", "IND", "FR", "UK", "DE"];
+interface SpaceObjectPoint {
+  norad_cat_id: number;
+  object_name: string;
+  object_type: string;
+  country: string;
+  lat: number;
+  lng: number;
+  alt: number;
+}
 
-  const leoTypes = ["PAYLOAD", "DEBRIS", "DEBRIS", "ROCKET BODY", "DEBRIS"];
-  const leoNames = ["STARLINK", "COSMOS DEB", "FENGYUN DEB", "IRIDIUM", "SL-16 R/B", "CZ-6A DEB"];
-  const meoNames = ["GPS", "GLONASS", "GALILEO", "BEIDOU"];
-  const geoNames = ["INTELSAT", "SES", "ECHOSTAR", "EUTELSAT", "JCSAT"];
+function computePositions(objects: GlobeObject[], date: Date): SpaceObjectPoint[] {
+  const gmst = gstime(date);
+  const results: SpaceObjectPoint[] = [];
 
-  return Array.from({ length: count }, (_, i) => {
-    const roll = Math.random();
-    let type: string, alt: number, lat: number, name: string;
+  for (const obj of objects) {
+    try {
+      const satrec = twoline2satrec(obj.tle_line1, obj.tle_line2);
+      const posVel = propagate(satrec, date);
+      if (!posVel || typeof posVel.position === "boolean" || !posVel.position) continue;
 
-    if (roll < 0.75) {
-      // LEO: 200-2,000km (75%)
-      type = leoTypes[i % leoTypes.length];
-      alt = type === "PAYLOAD" ? 400 + Math.random() * 1200
-        : type === "DEBRIS" ? 500 + Math.random() * 1000
-        : 300 + Math.random() * 1500;
-      lat = (Math.random() - 0.5) * 160;
-      name = `${leoNames[i % leoNames.length]}-${i}`;
-    } else if (roll < 0.88) {
-      // MEO: 2,000-25,000km (13%)
-      type = Math.random() < 0.8 ? "PAYLOAD" : "ROCKET BODY";
-      alt = 19000 + Math.random() * 3000;
-      lat = (Math.random() - 0.5) * 110;
-      name = `${meoNames[i % meoNames.length]}-${i}`;
-    } else {
-      // GEO: ~35,786km (12%)
-      type = Math.random() < 0.7 ? "PAYLOAD" : "DEBRIS";
-      alt = 35500 + Math.random() * 600;
-      lat = (Math.random() - 0.5) * 6; // GEO는 적도 근처
-      name = `${geoNames[i % geoNames.length]}-${i}`;
+      const pos = posVel.position;
+      const posGd = eciToGeodetic(pos, gmst);
+      const lat = degreesLat(posGd.latitude);
+      const lng = degreesLong(posGd.longitude);
+      const alt = posGd.height;
+
+      if (!isFinite(lat) || !isFinite(lng) || !isFinite(alt)) continue;
+
+      results.push({
+        norad_cat_id: obj.norad_cat_id,
+        object_name: obj.object_name,
+        object_type: obj.object_type,
+        country: obj.country,
+        lat,
+        lng,
+        alt,
+      });
+    } catch {
+      // TLE 파싱/전파 실패 시 건너뛰기
     }
+  }
 
-    return {
-      norad_cat_id: 10000 + i,
-      object_name: name,
-      object_type: type,
-      country: countries[i % countries.length],
-      lat,
-      lng: (Math.random() - 0.5) * 360,
-      alt,
-    };
-  });
+  return results;
 }
 
 export default function HomePage() {
   const [censusData, setCensusData] = useState<OrbitalCensus[]>([]);
+  const [globeObjects, setGlobeObjects] = useState<GlobeObject[]>([]);
+  const [positions, setPositions] = useState<SpaceObjectPoint[]>([]);
   const [lastUpdated, setLastUpdated] = useState("");
   const [loading, setLoading] = useState(true);
-  const [sampleObjects] = useState(() => generateSampleObjects(5000));
+  const globeObjectsRef = useRef<GlobeObject[]>([]);
 
+  // 데이터 fetch
   useEffect(() => {
     fetchTableData<OrbitalCensus>("orbital_census")
       .then((result: TableExport<OrbitalCensus>) => {
         setCensusData(result.data);
         setLastUpdated(result.exported_at);
       })
+      .catch(() => {});
+
+    fetchTableData<GlobeObject>("globe_data")
+      .then((result: TableExport<GlobeObject>) => {
+        setGlobeObjects(result.data);
+        globeObjectsRef.current = result.data;
+        // 최초 위치 계산
+        setPositions(computePositions(result.data, new Date()));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, []);
+
+  // 30초마다 위치 업데이트 (위성 이동 반영)
+  useEffect(() => {
+    if (globeObjects.length === 0) return;
+
+    const interval = setInterval(() => {
+      setPositions(computePositions(globeObjectsRef.current, new Date()));
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [globeObjects.length]);
+
+  const updatePositions = useCallback(() => {
+    if (globeObjectsRef.current.length > 0) {
+      setPositions(computePositions(globeObjectsRef.current, new Date()));
+    }
   }, []);
 
   const { totalObjects, payloads, debris, rocketBodies } = useMemo(() => {
@@ -83,7 +119,7 @@ export default function HomePage() {
 
   return (
     <main>
-      <Globe3D objects={sampleObjects} />
+      <Globe3D objects={positions} />
       <StatsOverlay
         totalObjects={totalObjects}
         payloads={payloads}
